@@ -60,7 +60,7 @@ async function bootstrap() {
     options: {
       urls: [`${configService.get('rmq.uri')}`],
       queue: `${configService.get('rmq.notification')}`,
-      queueOptions: { durable: false },
+      queueOptions: { durable: true },
       prefetchCount: 1,
     },
   });
