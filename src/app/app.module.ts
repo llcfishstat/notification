@@ -25,7 +25,7 @@ import { AppController } from './app.controller';
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loaderOptions: {
-        path: join(__dirname, '../i18n/'),
+        path: join(__dirname, '../languages/'),
         watch: true,
       },
       resolvers: [
@@ -44,7 +44,7 @@ import { AppController } from './app.controller';
             urls: [`${configService.get('rmq.uri')}`],
             queue: `${configService.get('rmq.auth')}`,
             queueOptions: {
-              durable: true,
+              durable: false,
             },
           },
         }),

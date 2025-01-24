@@ -20,7 +20,7 @@ import { NotificationController } from './controllers/notification.controller';
             urls: [`${configService.get('rmq.uri')}`],
             queue: `${configService.get('rmq.auth')}`,
             queueOptions: {
-              durable: true,
+              durable: false,
             },
           },
         }),
