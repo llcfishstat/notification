@@ -68,7 +68,7 @@ export class NotificationController {
     @AuthUser() user: IAuthUser,
     @Body() data: NotificationCreateDto,
   ): Promise<NotificationResponseDto> {
-    return this.notificationService.createNotification(data, user.id);
+    return this.notificationService.createNotification(data);
   }
 
   @ApiBearerAuth('accessToken')
