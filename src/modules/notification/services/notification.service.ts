@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { MailService } from 'src/common/services/mail.service';
@@ -9,7 +14,6 @@ import {
 } from '../dtos/notification.send.email.dto';
 import { SendTextDto } from '../dtos/notification.send.text.dto';
 import { NotificationCreateDto } from '../dtos/notification.create.dto';
-import { INotificationService } from '../interfaces/notification.service.interface';
 import { PrismaService } from '../../../common/services/prisma.service';
 import { INotificationSendResponse } from '../interfaces/notification.interface';
 import { SendInAppDto } from '../dtos/notification.send.inapp.dto';
@@ -19,9 +23,10 @@ import {
 } from '../dtos/notification.response.dto';
 import { NotificationUpdateDto } from '../dtos/notification.update.dto';
 import { NotificationGetDto } from '../dtos/notification.get.dto';
+import { NotificationSubjectType, NotificationType } from '@prisma/client';
 
 @Injectable()
-export class NotificationService implements INotificationService {
+export class NotificationService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly mainService: MailService,
@@ -31,51 +36,60 @@ export class NotificationService implements INotificationService {
   }
 
   async createNotification(
-    senderId: number,
     data: NotificationCreateDto,
+    senderId?: string,
   ): Promise<NotificationResponseDto> {
-    const { body, title, type, recipientIds, subject } = data;
+    try {
+      console.log({ data });
+      const { body, title, type, recipientIds, subject } = data;
 
-    const notification = await this.prismaService.notification.create({
-      data: {
-        title,
-        body,
-        type,
-        senderId,
-        actionPayload: {},
-        subject,
-      },
-    });
-
-    const recipients = [];
-    for (const userId of recipientIds) {
-      const recipient = await this.prismaService.recipients.create({
+      const notification = await this.prismaService.notification.create({
         data: {
-          recipientId: userId,
-          seenByUser: false,
-          notification: { connect: { id: notification.id } },
+          title,
+          body,
+          type,
+          // senderId,
+          actionPayload: {},
+          subject,
         },
       });
 
-      const user = await firstValueFrom(
-        this.authClient.send(
-          'getUserById',
-          JSON.stringify({ userId: recipient.recipientId }),
-        ),
-      );
+      const recipients = [];
+      for (const userId of recipientIds) {
+        const recipient = await this.prismaService.recipients.create({
+          data: {
+            recipientId: userId,
+            seenByUser: false,
+            notification: { connect: { id: notification.id } },
+          },
+        });
 
-      recipients.push({ ...recipient, user });
+        const user = await firstValueFrom(
+          this.authClient.send(
+            'getUserById',
+            JSON.stringify({ userId: recipient.recipientId }),
+          ),
+        );
+
+        recipients.push({ ...recipient, user });
+      }
+
+      // const sender = await firstValueFrom(
+      //   this.authClient.send(
+      //     'getUserById',
+      //     JSON.stringify({ userId: senderId }),
+      //   ),
+      // );
+
+      return {
+        ...notification,
+        // sender,
+        recipients,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(error);
     }
-
-    const sender = await firstValueFrom(
-      this.authClient.send('getUserById', JSON.stringify({ userId: senderId })),
-    );
-
-    return {
-      ...notification,
-      sender,
-      recipients,
-    };
   }
 
   async updateNotification(
@@ -123,16 +137,16 @@ export class NotificationService implements INotificationService {
       recipientsPopulated.push({ ...recipient, user });
     }
 
-    const sender = await firstValueFrom(
-      this.authClient.send(
-        'getUserById',
-        JSON.stringify({ userId: notification.senderId }),
-      ),
-    );
+    // const sender = await firstValueFrom(
+    //   this.authClient.send(
+    //     'getUserById',
+    //     JSON.stringify({ userId: notification.senderId }),
+    //   ),
+    // );
 
     return {
       ...notification,
-      sender,
+      // sender,
       recipients: recipientsPopulated,
     };
   }
@@ -183,16 +197,16 @@ export class NotificationService implements INotificationService {
         recipientsPopulated.push({ ...recipient, user });
       }
 
-      const sender = await firstValueFrom(
-        this.authClient.send(
-          'getUserById',
-          JSON.stringify({ userId: notification.senderId }),
-        ),
-      );
+      // const sender = await firstValueFrom(
+      //   this.authClient.send(
+      //     'getUserById',
+      //     JSON.stringify({ userId: notification.senderId }),
+      //   ),
+      // );
 
       return {
         ...notification,
-        sender,
+        // sender,
         recipients: recipientsPopulated,
       };
     } catch (e) {
@@ -201,18 +215,22 @@ export class NotificationService implements INotificationService {
   }
 
   async getNotifications(
-    userId: number,
     query: NotificationGetDto,
+    userId: string,
   ): Promise<NotificationPaginationResponseDto> {
     try {
       const { skip, take, searchTerm } = query;
       const count = await this.prismaService.notification.count({
         where: {
           ...(userId && {
-            senderId: userId,
+            recipients: {
+              some: {
+                recipientId: userId,
+              },
+            },
           }),
           ...(searchTerm && {
-            $or: [
+            OR: [
               {
                 title: searchTerm,
               },
@@ -226,10 +244,14 @@ export class NotificationService implements INotificationService {
       const notifications = await this.prismaService.notification.findMany({
         where: {
           ...(userId && {
-            senderId: userId,
+            recipients: {
+              some: {
+                recipientId: userId,
+              },
+            },
           }),
           ...(searchTerm && {
-            $or: [
+            OR: [
               {
                 title: searchTerm,
               },
@@ -239,23 +261,28 @@ export class NotificationService implements INotificationService {
             ],
           }),
         },
-        skip,
-        take,
+        skip: Number(skip),
+        take: Number(take),
       });
+
+      console.log({ notifications });
+
       const populatedNotifications = [];
+
       for (const notification of notifications) {
-        const sender = await firstValueFrom(
-          this.authClient.send(
-            'getUserById',
-            JSON.stringify({ userId: notification.senderId }),
-          ),
-        );
+        // const sender = await firstValueFrom(
+        //   this.authClient.send(
+        //     'getUserById',
+        //     JSON.stringify({ userId: notification.senderId }),
+        //   ),
+        // );
 
         const recipients = await this.prismaService.recipients.findMany({
           where: { notificationId: notification.id },
         });
 
         const populatedRecipients = [];
+
         for (const recipient of recipients) {
           const user = await firstValueFrom(
             this.authClient.send(
@@ -268,7 +295,7 @@ export class NotificationService implements INotificationService {
 
         populatedNotifications.push({
           ...notification,
-          sender,
+          // sender,
           recipients: populatedRecipients,
         });
       }
@@ -277,27 +304,43 @@ export class NotificationService implements INotificationService {
         data: populatedNotifications,
       };
     } catch (e) {
+      console.log(e);
       throw e;
     }
   }
 
   async sendEmail({ body, email, type }: SendEmailDto) {
-    const emailType: Record<
-      EmailNotificationEnum,
-      MailService[
-        | 'sendAuctionJoinEmail'
-        | 'sendAuditionThanEmail'
-        | 'sendAuctionWinnerEmail']
-    > = {
-      [EmailNotificationEnum.AUCTION_JOIN]:
-        this.mainService.sendAuctionJoinEmail.bind(this.mainService),
-      [EmailNotificationEnum.AUCTION_THANX]:
-        this.mainService.sendAuditionThanEmail.bind(this.mainService),
-      [EmailNotificationEnum.AUCTION_WINNER]:
-        this.mainService.sendAuctionWinnerEmail.bind(this.mainService),
-    };
+    switch (type) {
+      case EmailNotificationEnum.AUCTION_JOIN:
+        await this.createNotification({
+          title: 'title',
+          body: 'body',
+          type: NotificationType.InApp,
+          subject: NotificationSubjectType.AuctionJoin,
+          recipientIds: ['ce290dd7-3101-462a-8778-fda9a44ec48e'],
+        });
+        return this.mainService.sendAuctionJoinEmail(email, body);
 
-    return emailType[type](email, body);
+      case EmailNotificationEnum.AUCTION_THANX:
+        await this.createNotification({
+          title: 'title',
+          body: 'body',
+          type: NotificationType.InApp,
+          subject: NotificationSubjectType.AuctionThanks,
+          recipientIds: ['ce290dd7-3101-462a-8778-fda9a44ec48e'],
+        });
+        return this.mainService.sendAuditionThanEmail(email, body);
+
+      case EmailNotificationEnum.AUCTION_WINNER:
+        await this.createNotification({
+          title: 'title',
+          body: 'body',
+          type: NotificationType.InApp,
+          subject: NotificationSubjectType.AuctionWinner,
+          recipientIds: ['ce290dd7-3101-462a-8778-fda9a44ec48e'],
+        });
+        return this.mainService.sendAuctionWinnerEmail(email, body);
+    }
   }
 
   async sendText(_data: SendTextDto): Promise<INotificationSendResponse> {

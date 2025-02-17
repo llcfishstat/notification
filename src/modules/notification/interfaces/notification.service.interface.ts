@@ -12,20 +12,27 @@ import { NotificationGetDto } from '../dtos/notification.get.dto';
 
 export interface INotificationService {
   createNotification(
-    senderId: number,
     data: NotificationCreateDto,
+    senderId?: string,
   ): Promise<NotificationResponseDto>;
+
   updateNotification(
     notificationId: string,
     data: NotificationUpdateDto,
   ): Promise<NotificationResponseDto>;
+
   deleteNotification(notificationId: string): Promise<void>;
+
   getNotification(notificationId: string): Promise<NotificationResponseDto>;
+
   getNotifications(
-    userId: number,
     data: NotificationGetDto,
+    userId?: string,
   ): Promise<NotificationPaginationResponseDto>;
+
   sendEmail(data: SendEmailDto): Promise<INotificationSendResponse>;
+
   sendText(data: SendTextDto): Promise<INotificationSendResponse>;
+
   sendInApp(data: SendInAppDto): Promise<INotificationSendResponse>;
 }

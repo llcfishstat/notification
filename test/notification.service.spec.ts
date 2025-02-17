@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationType } from '@prisma/client';
 import { PrismaService } from 'src/common/services/prisma.service';
 import { NotificationCreateDto } from 'src/modules/notification/dtos/notification.create.dto';
-import { SendEmailDto } from 'src/modules/notification/dtos/notification.send.email.dto';
+import {
+  EmailNotificationEnum,
+  SendEmailDto,
+} from 'src/modules/notification/dtos/notification.send.email.dto';
 import { SendInAppDto } from 'src/modules/notification/dtos/notification.send.inapp.dto';
 import { SendTextDto } from 'src/modules/notification/dtos/notification.send.text.dto';
 import { NotificationUpdateDto } from 'src/modules/notification/dtos/notification.update.dto';
@@ -71,7 +74,7 @@ describe('NotificationService', () => {
     const mockNotification = {
       id: 1,
       ...mockNotificationCreateDto,
-      senderId: 100,
+      senderId: '100',
       actionPayload: {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -100,8 +103,8 @@ describe('NotificationService', () => {
 
     it('should create a notification', async () => {
       const result = await service.createNotification(
-        100,
         mockNotificationCreateDto,
+        '100',
       );
 
       expect(prismaService.notification.create).toHaveBeenCalledWith({
@@ -109,7 +112,7 @@ describe('NotificationService', () => {
           title: mockNotificationCreateDto.title,
           body: mockNotificationCreateDto.body,
           type: mockNotificationCreateDto.type,
-          senderId: 100,
+          senderId: '100',
           actionPayload: {},
           subject: mockNotificationCreateDto.subject,
         },
@@ -122,7 +125,7 @@ describe('NotificationService', () => {
     });
 
     it('should create recipients for each recipientId', async () => {
-      await service.createNotification(100, mockNotificationCreateDto);
+      await service.createNotification(mockNotificationCreateDto, '100');
 
       expect(prismaService.recipients.create).toHaveBeenCalledWith({
         data: {
@@ -134,7 +137,7 @@ describe('NotificationService', () => {
     });
 
     it('should fetch user data for sender and recipients', async () => {
-      await service.createNotification(100, mockNotificationCreateDto);
+      await service.createNotification(mockNotificationCreateDto, '100');
 
       expect(authClient.send).toHaveBeenCalledWith(
         'getUserById',
@@ -156,7 +159,7 @@ describe('NotificationService', () => {
       );
 
       await expect(
-        service.createNotification(100, mockNotificationCreateDto),
+        service.createNotification(mockNotificationCreateDto, '100'),
       ).rejects.toThrow('Database error');
     });
   });
@@ -172,7 +175,7 @@ describe('NotificationService', () => {
       id: notificationId,
       title: 'Original Title',
       body: 'Original Body',
-      senderId: 100,
+      senderId: '100',
       type: 'TEST',
       actionPayload: {},
       subject: 'Test Subject',
@@ -378,7 +381,7 @@ describe('NotificationService', () => {
   });
 
   describe('getNotifications', () => {
-    const userId = 1;
+    const userId = '1';
     const query = { skip: 0, take: 10, searchTerm: 'test' };
     const mockNotifications = [
       { id: 'notification-id-1', senderId: 'sender-id-1' },
@@ -396,7 +399,7 @@ describe('NotificationService', () => {
     });
 
     it('should return a list of populated notifications', async () => {
-      const result = await service.getNotifications(userId, query);
+      const result = await service.getNotifications(query, userId);
 
       expect(prismaService.notification.count).toHaveBeenCalledWith({
         where: {
@@ -429,7 +432,7 @@ describe('NotificationService', () => {
       const error = new Error('Find failed');
       prismaService.notification.findMany.mockRejectedValue(error);
 
-      await expect(service.getNotifications(userId, query)).rejects.toThrow(
+      await expect(service.getNotifications(query, userId)).rejects.toThrow(
         error,
       );
     });
@@ -438,7 +441,7 @@ describe('NotificationService', () => {
       const error = new Error('Count failed');
       prismaService.notification.count.mockRejectedValue(error);
 
-      await expect(service.getNotifications(userId, query)).rejects.toThrow(
+      await expect(service.getNotifications(query, userId)).rejects.toThrow(
         error,
       );
     });
@@ -447,7 +450,7 @@ describe('NotificationService', () => {
       const error = new Error('Find recipients failed');
       prismaService.recipients.findMany.mockRejectedValue(error);
 
-      await expect(service.getNotifications(userId, query)).rejects.toThrow(
+      await expect(service.getNotifications(query, userId)).rejects.toThrow(
         error,
       );
     });
@@ -461,7 +464,7 @@ describe('NotificationService', () => {
           throw error;
         }); // Third call for second recipient
 
-      await expect(service.getNotifications(userId, query)).rejects.toThrow(
+      await expect(service.getNotifications(query, userId)).rejects.toThrow(
         error,
       );
     });
@@ -474,7 +477,7 @@ describe('NotificationService', () => {
         }) // First call for sender
         .mockImplementation(() => of(mockUser)); // Subsequent calls for recipients
 
-      await expect(service.getNotifications(userId, query)).rejects.toThrow(
+      await expect(service.getNotifications(query, userId)).rejects.toThrow(
         error,
       );
     });
@@ -484,6 +487,10 @@ describe('NotificationService', () => {
     it('should send an Email notification', async () => {
       const data: SendEmailDto = {
         /* in-app data */
+        body: 'body',
+        type: EmailNotificationEnum.AUCTION_THANX,
+        email: 'test@test.com',
+        userId: 'user-id-1',
       };
 
       const result = await service.sendEmail(data);

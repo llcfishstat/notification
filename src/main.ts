@@ -72,4 +72,5 @@ async function bootstrap() {
     )} service started successfully on port ${port}`,
   );
 }
+
 bootstrap();

@@ -1,5 +1,6 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
@@ -7,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { EventPattern } from '@nestjs/microservices';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -51,13 +53,24 @@ export class NotificationController {
   }
 
   @ApiBearerAuth('accessToken')
+  // @AllowedRoles(['Admin'])
+  @Get()
+  async getNotifications(
+    @AuthUser() user: IAuthUser,
+    @Query() data: NotificationGetDto,
+  ): Promise<NotificationPaginationResponseDto> {
+    console.log({ user });
+    return this.notificationService.getNotifications(data, user.id);
+  }
+
+  @ApiBearerAuth('accessToken')
   @AllowedRoles(['Admin'])
   @Post()
   async createNotification(
     @AuthUser() user: IAuthUser,
     @Body() data: NotificationCreateDto,
   ): Promise<NotificationResponseDto> {
-    return this.notificationService.createNotification(user.id, data);
+    return this.notificationService.createNotification(data, user.id);
   }
 
   @ApiBearerAuth('accessToken')
@@ -85,15 +98,5 @@ export class NotificationController {
     @Param('id') notificationId: string,
   ): Promise<NotificationResponseDto> {
     return this.notificationService.getNotification(notificationId);
-  }
-
-  @ApiBearerAuth('accessToken')
-  @AllowedRoles(['Admin'])
-  @Get()
-  async getNotifications(
-    @AuthUser() user: IAuthUser,
-    @Query() data: NotificationGetDto,
-  ): Promise<NotificationPaginationResponseDto> {
-    return this.notificationService.getNotifications(user.id, data);
   }
 }

@@ -11,11 +11,11 @@ export class NotificationResponseDto implements Notification {
   deletedAt: Date;
   id: string;
   isDeleted: boolean;
-  senderId: number;
+  senderId: string;
 
   @Type(() => UserResponseDto)
   @ValidateNested()
-  sender: UserResponseDto;
+  sender?: UserResponseDto;
 
   subject: $Enums.NotificationSubjectType;
   title: string;

@@ -8,4 +8,5 @@ export class SendEmailDto {
   email: string;
   type: EmailNotificationEnum;
   body: any;
+  userId?: string;
 }
