@@ -1,9 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
+import { MailService } from 'src/common/services/mail.service';
 
-import { SendEmailDto } from '../dtos/notification.send.email.dto';
+import {
+  EmailNotificationEnum,
+  SendEmailDto,
+} from '../dtos/notification.send.email.dto';
 import { SendTextDto } from '../dtos/notification.send.text.dto';
 import { NotificationCreateDto } from '../dtos/notification.create.dto';
 import { INotificationService } from '../interfaces/notification.service.interface';
@@ -21,6 +24,7 @@ import { NotificationGetDto } from '../dtos/notification.get.dto';
 export class NotificationService implements INotificationService {
   constructor(
     private readonly prismaService: PrismaService,
+    private readonly mainService: MailService,
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
   ) {
     this.authClient.connect();
@@ -277,12 +281,23 @@ export class NotificationService implements INotificationService {
     }
   }
 
-  async sendEmail(_data: SendEmailDto): Promise<INotificationSendResponse> {
-    return Promise.resolve({
-      acknowledged: true,
-      status: 'OK',
-      transactionId: 'test',
-    });
+  async sendEmail({ body, email, type }: SendEmailDto) {
+    const emailType: Record<
+      EmailNotificationEnum,
+      MailService[
+        | 'sendAuctionJoinEmail'
+        | 'sendAuditionThanEmail'
+        | 'sendAuctionWinnerEmail']
+    > = {
+      [EmailNotificationEnum.AUCTION_JOIN]:
+        this.mainService.sendAuctionJoinEmail.bind(this.mainService),
+      [EmailNotificationEnum.AUCTION_THANX]:
+        this.mainService.sendAuditionThanEmail.bind(this.mainService),
+      [EmailNotificationEnum.AUCTION_WINNER]:
+        this.mainService.sendAuctionWinnerEmail.bind(this.mainService),
+    };
+
+    return emailType[type](email, body);
   }
 
   async sendText(_data: SendTextDto): Promise<INotificationSendResponse> {

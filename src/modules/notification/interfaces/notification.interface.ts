@@ -1,8 +1,4 @@
-export interface INotificationSendResponse {
-  acknowledged: boolean;
-  status: string;
-  transactionId: string;
-}
+export interface INotificationSendResponse {}
 
 export interface IAuthUser {
   id: number;

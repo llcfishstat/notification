@@ -42,12 +42,12 @@ export class NotificationController {
 
   @EventPattern('sendEmail')
   async sendEmail(@TransformMessagePayload() data: SendEmailDto) {
-    this.notificationService.sendEmail(data);
+    return this.notificationService.sendEmail(data);
   }
 
   @EventPattern('sendInApp')
   async sendInApp(@TransformMessagePayload() data: SendInAppDto) {
-    this.notificationService.sendEmail(data);
+    this.notificationService.sendInApp(data);
   }
 
   @ApiBearerAuth('accessToken')
