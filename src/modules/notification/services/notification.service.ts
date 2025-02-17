@@ -7,6 +7,7 @@ import {
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { MailService } from 'src/common/services/mail.service';
+import { NotificationSubjectType, NotificationType } from '@prisma/client';
 
 import {
   EmailNotificationEnum,
@@ -23,7 +24,6 @@ import {
 } from '../dtos/notification.response.dto';
 import { NotificationUpdateDto } from '../dtos/notification.update.dto';
 import { NotificationGetDto } from '../dtos/notification.get.dto';
-import { NotificationSubjectType, NotificationType } from '@prisma/client';
 
 @Injectable()
 export class NotificationService {
@@ -37,7 +37,7 @@ export class NotificationService {
 
   async createNotification(
     data: NotificationCreateDto,
-    senderId?: string,
+    // senderId?: string,
   ): Promise<NotificationResponseDto> {
     try {
       console.log({ data });

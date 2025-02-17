@@ -4,7 +4,7 @@ export class SendAucitonJoinEmail {
   company: string;
   product: string;
   auctionHref: string;
-  auctionChat: string
+  auctionChat: string;
 }
 
 export class SendAucitonThankEmail {
@@ -21,5 +21,5 @@ export class SendAucitonWinnerEmail {
   company: string;
   product: string;
   auctionHref: string;
-  companyChat: string
+  companyChat: string;
 }
